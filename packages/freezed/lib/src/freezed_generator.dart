@@ -362,16 +362,27 @@ Read here: https://github.com/rrousselGit/freezed/blob/master/packages/freezed/C
     return result;
   }
 
+  String _extractTypeFromGenericAnnotation(
+    String annotation,
+    ConstructorElement element,
+  ) {
+    final reg = RegExp(r'.*?<(.+)>');
+    final match = reg.firstMatch(annotation)?.group(1);
+    if (match == null) {
+      throw InvalidGenerationSourceError(
+        'Annotation does not properly specify type: $annotation',
+        element: element,
+      );
+    }
+
+    return match;
+  }
+
   Iterable<String> _withDecorationTypes(ConstructorElement constructor) sync* {
     for (final metadata in constructor.metadata) {
       if (!metadata.isWith) continue;
-      final object = metadata.computeConstantValue()!;
 
-      yield resolveFullTypeStringFrom(
-        constructor.library,
-        (object.type! as InterfaceType).typeArguments.single,
-        withNullability: false,
-      );
+      yield _extractTypeFromGenericAnnotation(metadata.toSource(), constructor);
     }
   }
 
@@ -380,13 +391,8 @@ Read here: https://github.com/rrousselGit/freezed/blob/master/packages/freezed/C
   ) sync* {
     for (final metadata in constructor.metadata) {
       if (!metadata.isImplements) continue;
-      final object = metadata.computeConstantValue()!;
 
-      yield resolveFullTypeStringFrom(
-        constructor.library,
-        (object.type! as InterfaceType).typeArguments.single,
-        withNullability: false,
-      );
+      yield _extractTypeFromGenericAnnotation(metadata.toSource(), constructor);
     }
   }
 
