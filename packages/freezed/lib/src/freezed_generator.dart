@@ -10,7 +10,6 @@ import 'package:freezed/src/templates/copy_with.dart';
 import 'package:freezed/src/templates/parameter_template.dart';
 import 'package:freezed/src/templates/properties.dart';
 import 'package:freezed/src/templates/prototypes.dart';
-import 'package:freezed/src/tools/type.dart';
 import 'package:freezed/src/utils.dart';
 import 'package:freezed_annotation/freezed_annotation.dart'
     show
