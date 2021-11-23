@@ -29,6 +29,7 @@ import 'templates/abstract_template.dart';
 import 'templates/concrete_template.dart';
 import 'templates/from_json_template.dart';
 import 'tools/recursive_import_locator.dart';
+import 'tools/type.dart';
 
 extension on DartObject {
   T decodeField<T>(
@@ -507,7 +508,13 @@ class FreezedGenerator extends ParserGenerator<GlobalData, Data, Freezed> {
         genericParameters: GenericsParameterTemplate(
           (parameter.type as InterfaceType)
               .typeArguments
-              .map((e) => e.getDisplayString(withNullability: true))
+              .map(
+                (type) => resolveFullTypeStringFrom(
+                  type.element!.library!,
+                  type,
+                  withNullability: true,
+                ),
+              )
               .toList(),
         ),
       );
