@@ -1,3 +1,4 @@
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
@@ -5,36 +6,31 @@ import 'package:collection/collection.dart';
 
 import 'imports.dart';
 
-/// Returns the [Element] for a given [DartType]
-///
-/// this is usually type.element, except if it is a typedef then it is
-/// type.alias.element
-Element _getElementForType(DartType type) {
-  if (type.element != null) {
-    return type.element!;
-  }
-  return type.alias!.element;
-}
-
 /// Renders a type based on its string + potential import alias
 String resolveFullTypeStringFrom(
   LibraryElement originLibrary,
   DartType type, {
   required bool withNullability,
 }) {
-  final owner = originLibrary.prefixes.firstWhereOrNull(
-    (e) {
-      final librariesForPrefix = e.library.getImportsWithPrefix(e);
 
-      return librariesForPrefix.any((l) {
-        return l.importedLibrary!.anyTransitiveExport((library) {
-          return library.id == _getElementForType(type).library?.id;
-        });
-      });
-    },
-  );
+  String buildType(String name, List<DartType> typeArguments) {
+    if (typeArguments.isNotEmpty) {
+      name += '<${typeArguments.map(
+            (t) =>
+            resolveFullTypeStringFrom(
+              originLibrary,
+              t,
+              withNullability: withNullability,
+            ),
+      ).join(', ')}>';
+    }
 
-  String? displayType = type.getDisplayString(withNullability: withNullability);
+    if (type.nullabilitySuffix == NullabilitySuffix.question) {
+      name += '?';
+    }
+
+    return name;
+  }
 
   // The parameter is a typedef in the form of
   // SomeTypedef typedef
@@ -48,15 +44,32 @@ String resolveFullTypeStringFrom(
   // 'dynamic Function(String)'
   //
   // Instead of 'SomeTypedef'
-  if (type is FunctionType && type.alias?.element != null) {
-    displayType = type.alias!.element.name;
-    if (type.alias!.typeArguments.isNotEmpty) {
-      displayType += '<${type.alias!.typeArguments.join(', ')}>';
-    }
-    if (type.nullabilitySuffix == NullabilitySuffix.question) {
-      displayType += '?';
-    }
+  late String displayType;
+  int? libraryId;
+  if (type.alias?.element != null) {
+    final alias = type.alias!;
+    final element = alias.element;
+    displayType = buildType(element.name, alias.typeArguments);
+    libraryId = element.library.id;
+  } else if (type is InterfaceType) {
+    final element = type.element;
+    displayType = buildType(element.name, type.typeArguments);
+    libraryId = element.library.id;
+  } else {
+    displayType = type.getDisplayString(withNullability: withNullability);
   }
+
+  final owner = originLibrary.prefixes.firstWhereOrNull(
+    (e) {
+      final librariesForPrefix = e.library.getImportsWithPrefix(e);
+
+      return librariesForPrefix.any((l) {
+        return l.importedLibrary!.anyTransitiveExport((library) {
+          return library.id == libraryId;
+        });
+      });
+    },
+  );
 
   if (owner != null) {
     return '${owner.name}.$displayType';
