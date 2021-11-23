@@ -16,5 +16,6 @@ class ClassWithTypedef with _$ClassWithTypedef {
     ExternalTypedef externalTypedef,
     two.ExternalTypedefTwo externalTypedefTwo,
     GenericTypedef<int, bool> genericTypedef,
+    GenericTypedef<ExternalTypedef, two.ExternalTypedefTwo> genericTypedefTwo,
   ) = _ClassWithTypedef;
 }

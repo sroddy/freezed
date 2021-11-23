@@ -19,37 +19,28 @@ extension DartTypeX on DartType {
   }
 }
 
-/// Returns the [Element] for a given [DartType]
-///
-/// this is usually type.element, except if it is a typedef then it is
-/// type.alias.element
-Element? _getElementForType(DartType type) {
-  if (type is InterfaceType) {
-    return type.element;
-  }
-  if (type is FunctionType) {
-    return type.alias?.element;
-  }
-  return null;
-}
-
 /// Renders a type based on its string + potential import alias
 String resolveFullTypeStringFrom(
   LibraryElement originLibrary,
   DartType type, {
   required bool withNullability,
 }) {
-  final owner = originLibrary.prefixes.firstWhereOrNull(
-    (e) {
-      return e.imports.any((l) {
-        return l.importedLibrary!.anyTransitiveExport((library) {
-          return library.id == _getElementForType(type)?.library?.id;
-        });
-      });
-    },
-  );
+  String buildType(String name, List<DartType> typeArguments) {
+    if (typeArguments.isNotEmpty) {
+      name += '<${typeArguments.map(
+            (t) => resolveFullTypeStringFrom(
+              originLibrary,
+              t,
+              withNullability: withNullability,
+            ),
+          ).join(', ')}>';
+    }
+    if (type.nullabilitySuffix == NullabilitySuffix.question) {
+      name += '?';
+    }
 
-  String? displayType = type.getDisplayString(withNullability: withNullability);
+    return name;
+  }
 
   // The parameter is a typedef in the form of
   // SomeTypedef typedef
@@ -63,37 +54,46 @@ String resolveFullTypeStringFrom(
   // 'dynamic Function(String)'
   //
   // Instead of 'SomeTypedef'
-  if (type is FunctionType && type.alias?.element != null) {
-    displayType = type.alias!.element.name;
-    if (type.alias!.typeArguments.isNotEmpty) {
-      displayType += '<${type.alias!.typeArguments.join(', ')}>';
+  final String displayType;
+  final int? libraryId;
+  if (type.alias?.element != null) {
+    final alias = type.alias!;
+    final element = alias.element;
+    displayType = buildType(element.name, alias.typeArguments);
+    libraryId = element.library.id;
+  } else if (type is InterfaceType) {
+    final element = type.element;
+    final typeArguments = type.typeArguments;
+    // The parameter is a Interface with a Type Argument that is not yet generated
+    // In this case analyzer would set its type to InvalidType
+    //
+    // For example for:
+    // List<ToBeGenerated> values,
+    //
+    // it would generate:  List<InvalidType>
+    // instead of          List<dynamic>
+    //
+    // This a regression in analyzer 5.13.0
+    if (typeArguments.any((e) => e is InvalidType)) {
+      final dynamicType = type.element.library.typeProvider.dynamicType;
+      typeArguments.replaceWhere((t) => t is InvalidType, dynamicType);
     }
-    if (type.nullabilitySuffix == NullabilitySuffix.question) {
-      displayType += '?';
-    }
+    displayType = buildType(element.name, typeArguments);
+    libraryId = element.library.id;
+  } else {
+    displayType = type.getDisplayString(withNullability: withNullability);
+    libraryId = null;
   }
 
-  // The parameter is a Interface with a Type Argument that is not yet generated
-  // In this case analyzer would set its type to InvalidType
-  //
-  // For example for:
-  // List<ToBeGenerated> values,
-  //
-  // it would generate:  List<InvalidType>
-  // instead of          List<dynamic>
-  //
-  // This a regression in analyzer 5.13.0
-  if (type is InterfaceType &&
-      type.typeArguments.any((e) => e is InvalidType)) {
-    final dynamicType = type.element.library.typeProvider.dynamicType;
-    var modified = type;
-    modified.typeArguments
-      ..replaceWhere(
-        (t) => t is InvalidType,
-        dynamicType,
-      );
-    displayType = modified.getDisplayString(withNullability: withNullability);
-  }
+  final owner = originLibrary.prefixes.firstWhereOrNull(
+    (e) {
+      return e.imports.any((l) {
+        return l.importedLibrary!.anyTransitiveExport((library) {
+          return library.id == libraryId;
+        });
+      });
+    },
+  );
 
   if (owner != null) {
     return '${owner.name}.$displayType';
