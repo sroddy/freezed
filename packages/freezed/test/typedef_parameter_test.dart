@@ -59,5 +59,15 @@ void main() {
     expect(e, isA<FunctionType>());
     expect(e.alias!.element.name, equals('GenericTypedef'));
     expect(e.alias!.typeArguments.toString(), equals('[int, bool]'));
+
+    var f = constructor.parameters[5].type;
+    expect(f, isA<FunctionType>());
+    expect(f.alias!.element.name, equals('GenericTypedef'));
+    expect(
+        f.alias!.typeArguments
+            .map((e) => e.alias!.element.name)
+            .toList()
+            .toString(),
+        equals('[ExternalTypedef, ExternalTypedefTwo]'));
   });
 }
