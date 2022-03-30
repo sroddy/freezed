@@ -469,6 +469,7 @@ Read here: https://github.com/rrousselGit/freezed/tree/master/packages/freezed#t
       );
     }
 
+    /*
     yield TearOff(
       name: data.name,
       serializable: globalData.hasJson && data.needsJsonSerializable,
@@ -476,6 +477,7 @@ Read here: https://github.com/rrousselGit/freezed/tree/master/packages/freezed#t
       genericsDefinition: data.genericsDefinitionTemplate,
       allConstructors: data.constructors,
     );
+    */
 
     final commonProperties = _commonProperties(data.constructors);
 
